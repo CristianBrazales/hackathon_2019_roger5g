@@ -3,7 +3,7 @@ var bodyParser = require('body-parser');
  server.use(bodyParser.json({limit: '50mb'}));
 // server.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 const fetch= require('node-fetch');
-var mssge,mssge2;
+var mssge,mssge2, x_val, y_val,area;
 //server.use(bodyParser.json())
 //use(bodyParser.urlencoded({ extended: false }))
 const Promise = require('bluebird');
@@ -18,14 +18,24 @@ const { createCanvas, loadImage } = require('canvas')
     response.arrayBuffer().then(function(buffer) {
       var bytes = new Int8Array(buffer);
       facefinder_classify_region = pico.unpack_cascade(bytes);
-      console.log('* cascade loaded');
+    //  console.log('* cascade loaded');
     })
   })
+
+
+	async function write_buffer (buf){
+
+ 	 await fs.writeFile('image.jpg', buf,function(err, result) {
+      if(err) console.log('error', err);}
+    );
+	//console.log("file_created");
+}
 
 server.get('/getPatients', (req,res) => {
 
 
 });
+
 /*
   a function to transform an RGBA image to grayscale
 */
@@ -34,7 +44,7 @@ server.get('/getPatients', (req,res) => {
         // Source: http://stackoverflow.com/questions/20267939/nodejs-write-base64-image-file
         function decodeBase64Image(dataString)
         {
-					console.log(dataString);
+					//console.log(dataString);
           var matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
           var response = {};
 
@@ -142,7 +152,7 @@ pico.unpack_cascade = function(bytes)
 
 pico.run_cascade = function(image, classify_region, params)
 {
- console.log("here run cascade");
+ //console.log("here run cascade");
  const pixels = image.pixels;
  const nrows = image.nrows;
  const ncols = image.ncols;
@@ -279,13 +289,13 @@ server.post('/send_img', (req,res) => {
    }
    buf = new Buffer(data, 'base64');
  }
-fs.writeFile('image.jpg', buf,function(err, result) {
-     if(err) console.log('error', err);}
-   );
 
-console.log("loading image");
+ fs.writeFile('image.jpg', buf,function(err, result) {
+		if(err) console.log('error', err);
+
+ //console.log("loading image");
  loadImage('./image.jpg').then((image) => {
-	 console.log("getting here");
+	// console.log("getting here");
   var  width_img = image.width;
 	var height_img=image.height;
 	const canvas = createCanvas(width_img, height_img);
@@ -294,6 +304,7 @@ console.log("loading image");
   var rgba = ctx.getImageData(0, 0, width_img, height_img).data;
   // prepare input to `run_cascade`
   //console.log(rgba);
+	//console.log("width is " + width_img + "height is"+ height_img);
   image = {
     "pixels": rgba_to_grayscale(rgba, height_img, width_img),
     "nrows": height_img,
@@ -314,42 +325,79 @@ console.log("loading image");
   //console.log(dets);
   // cluster the obtained detections
   dets = pico.cluster_detections(dets, 0.2); // set IoU threshold to 0.2
-  console.log(dets);
+  //console.log(dets);
 
   // draw results
   qthresh = 5.0 // this constant is empirical: other cascades might require a different one
-  for(i=0; i<dets.length; ++i)
-    // check the detection score
-    // if it's above the threshold, draw it
-    //console.log(dets);
-    //console.log(dets);
+area=0;
+    if(dets && dets[0][1]&& dets[0][0]){
+		y_val=dets[0][0];
+		x_val=dets[0][1];
 
-    if(dets[i][3]>qthresh && dets[i][3]!= null)
-    {
-      mssge=dets[i][1];
-      mssge2=dets[i][0];
-      ctx.beginPath();
-      ctx.arc(dets[i][1], dets[i][0], dets[i][2]/2, 0, 2*Math.PI, false);
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'red';
-      ctx.stroke();
-      console.log(mssge+  "m1    " +  mssge2 +"m2   ");
-
+		console.log(mssge+  "m1    " +  mssge2 +"m2   ");
+		if (FindPoint(0.0 , 0.0, width_img/4 ,height_img*0.5 ,  x_val,  y_val)){
+        res.status(201).send('area1');
+        	area=1;
     }
-    console.log(mssge + mssge2 + "this im sending");
-    res.json({ c1:mssge, c2:mssge2  })
+
+		else if (FindPoint(0.0 , 0.0, 2* (width_img/4) ,height_img*0.5 ,  x_val,  y_val)){
+		area=2;
+
+    res.status(202).send('area2');
+  }
+	else 	if (FindPoint(0.0 , 0.0, 3 *(width_img/4) ,height_img*0.5 ,  x_val,  y_val)){
+    	area=3;
+    res.status(203).send('area 3')
+  }
+
+
+	else 	if (FindPoint(0.0 , 0.0, width_img ,height_img*0.5 ,  x_val,  y_val)){
+    area=4;
+    res.status(204).send('area 4')
+  }
+}
+else{
+  res.status(200).send('no area')
+}
+
+
+
+
+		// check if its inside area 1
+		// function to find if given point
+// lies inside a given rectangle or not.
+
+
+    console.log("this im sending" + area);
+
+
 
 })
 
 
 // connect to the db and return information for login information
 });
+});
 server.post('*', (req,res) => {
 
-res.end("not valid");
+res.json({ area_val:'1', hit:"yes"  })
 
 // connect to the db and return information for login information
 });
 server.listen(3000, function() {
   console.log("server listening to port 3000");
 });
+
+
+
+/// helper functions
+// function to find if given point
+// lies inside a given rectangle or not.
+ function FindPoint( x1, y1,  x2, y2,  x,  y)
+ {
+	 console.log("testing");
+     if (x > x1 && x < x2 && y > y1 && y < y2)
+         return true;
+
+     return false;
+ }
