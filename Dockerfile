@@ -1,13 +1,13 @@
- # use a node base image
-FROM node:7-onbuild
+FROM node:8-alpine
 
-# set maintainer
-LABEL maintainer "alexander.donn@mobiledgex.com"
+WORKDIR usr/src/app
 
-# set a health check
-HEALTHCHECK --interval=5s \
-            --timeout=5s \
-            CMD curl -f http://127.0.0.1:8000 || exit 1
+COPY package*.json ./
 
-# tell docker what port to expose
-EXPOSE 8000
+RUN npm install
+
+COPY . .
+
+EXPOSE 8085
+
+CMD ["npm","start"]

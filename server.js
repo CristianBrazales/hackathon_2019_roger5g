@@ -385,7 +385,7 @@ res.json({ area_val:'1', hit:"yes"  })
 // connect to the db and return information for login information
 });
 server.listen(3000, function() {
-  console.log("server listening to port 3000");
+  console.log("server listening to port ");
 });
 
 
